@@ -1353,6 +1353,16 @@ def parse_date_series(series):
         pass
     return parsed
 
+# Helper to make sure dataframe columns of 'object' type are clean string types to prevent PyArrow serialization errors
+def prepare_df_for_arrow(df):
+    if df is None or len(df) == 0:
+        return df
+    df = df.copy()
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            df[col] = df[col].astype(str).replace({'nan': '', 'None': '', '<NA>': '', 'nat': '', 'NaT': ''})
+    return df
+
 # Helper to display interactive sub-report table
 def render_sub_report(df, name_key, download_name):
     if df is None or len(df) == 0:
@@ -1369,7 +1379,8 @@ def render_sub_report(df, name_key, download_name):
         df_display = df_display[mask]
         st.write(f"Found {len(df_display)} matching rows")
 
-    # Show Table
+    # Show Table safely formatted for PyArrow
+    df_display = prepare_df_for_arrow(df_display)
     st.dataframe(df_display, use_container_width=True)
 
     # Download button
@@ -2671,6 +2682,7 @@ for category in categories:
                     st.write(f"Found {len(df_display)} matching rows")
                 
                 # Show Table
+                df_display = prepare_df_for_arrow(df_display)
                 st.dataframe(df_display, use_container_width=True)
                 
                 # Download button
@@ -2969,6 +2981,7 @@ for category in categories:
                 df_display_renamed = df_display.rename(columns=rename_map)
                 
                 # Show Table
+                df_display_renamed = prepare_df_for_arrow(df_display_renamed)
                 st.dataframe(df_display_renamed, use_container_width=True)
                 
                 # Download button
@@ -3377,6 +3390,7 @@ for category in categories:
                 st.write(f"Found {len(df_display)} matching rows")
                 
             # Show Table
+            df_display = prepare_df_for_arrow(df_display)
             st.dataframe(df_display, use_container_width=True)
             
             # Download filtered data
