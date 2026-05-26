@@ -137,55 +137,106 @@ def process_refund_data(refund_file, qwt_file, returns_file, bulk_rto_file, safe
         
         # Load QWT and perform Door Ship lookup
         qwt = read_any_file(qwt_file)
-        Refund_data["__key"] = Refund_data["order id"].astype(str).str.strip().str.upper()
-        qwt_map = (
-            qwt.assign(__key = qwt["Customer Order ID"].astype(str).str.strip().str.upper())
-               .drop_duplicates("__key", keep="first")
-               .set_index("__key")["Customer Order ID"]
-        )
-        Refund_data["Door Ship (Seller Flex)"] = Refund_data["__key"].map(qwt_map)
+        order_id_cols = [c for c in Refund_data.columns if "order" in c.lower() and "id" in c.lower()]
+        if not order_id_cols:
+            raise KeyError("Could not find order ID column in Refund data. Required columns: order id")
+        order_id_col = order_id_cols[0]
+        Refund_data["__key"] = Refund_data[order_id_col].astype(str).str.strip().str.upper()
+        
+        qwt_order_cols = [c for c in qwt.columns if "customer" in c.lower() and "order" in c.lower()]
+        qwt_order_col = qwt_order_cols[0] if qwt_order_cols else None
+        if qwt_order_col and qwt_order_col in qwt.columns:
+            qwt_map = (
+                qwt.assign(__key = qwt[qwt_order_col].astype(str).str.strip().str.upper())
+                   .drop_duplicates("__key", keep="first")
+                   .set_index("__key")[qwt_order_col]
+            )
+            Refund_data["Door Ship (Seller Flex)"] = Refund_data["__key"].map(qwt_map)
+        else:
+            Refund_data["Door Ship (Seller Flex)"] = pd.NA
         Refund_data.drop(columns="__key", inplace=True)
         
         # Load Returns and perform FBA Return lookup
         returns = read_any_file(returns_file)
-        Refund_data.loc[:, "__key"] = Refund_data["order id"].astype(str).str.strip().str.upper()
-        returns.loc[:, "__key"] = returns["order-id"].astype(str).str.strip().str.upper()
-        ret_map = (
-            returns[["__key", "order-id"]]
-              .drop_duplicates("__key", keep="first")
-              .set_index("__key")["order-id"]
-        )
-        Refund_data["FBA Return"] = Refund_data["__key"].map(ret_map)
+        Refund_data.loc[:, "__key"] = Refund_data[order_id_col].astype(str).str.strip().str.upper()
+        
+        ret_order_cols = [c for c in returns.columns if "order" in c.lower() and "id" in c.lower()]
+        ret_order_col = ret_order_cols[0] if ret_order_cols else None
+        if ret_order_col and ret_order_col in returns.columns:
+            returns.loc[:, "__key"] = returns[ret_order_col].astype(str).str.strip().str.upper()
+            ret_map = (
+                returns[["__key", ret_order_col]]
+                  .drop_duplicates("__key", keep="first")
+                  .set_index("__key")[ret_order_col]
+            )
+            Refund_data["FBA Return"] = Refund_data["__key"].map(ret_map)
+        else:
+            Refund_data["FBA Return"] = pd.NA
         Refund_data.drop(columns="__key", inplace=True)
         
         # Load Bulk RTO and perform Seller Flex Return lookup
         bulk_rto = read_any_file(bulk_rto_file, sheet_name="All" if not bulk_rto_file.name.lower().endswith(".csv") else None)
-        Refund_data["__key"] = Refund_data["Door Ship (Seller Flex)"].astype(str).str.strip().str.upper()
-        bulk_rto["__key"] = bulk_rto["Order Id"].astype(str).str.strip().str.upper()
-        right_key = bulk_rto[["__key", "Order Id"]].drop_duplicates()
-        Refund_data = Refund_data.merge(right_key, on="__key", how="left")
-        Refund_data.rename(columns={"Order Id": "Seller Flex Return"}, inplace=True)
-        Refund_data.drop(columns="__key", inplace=True)
+        Refund_data["__key"] = Refund_data["Door Ship (Seller Flex)"].fillna("").astype(str).str.strip().str.upper()
+        Refund_data.loc[Refund_data["__key"] == "", "__key"] = pd.NA
+        
+        rto_order_cols = [c for c in bulk_rto.columns if "order" in c.lower() and "id" in c.lower()]
+        rto_order_col = rto_order_cols[0] if rto_order_cols else None
+        if rto_order_col and rto_order_col in bulk_rto.columns:
+            bulk_rto["__key"] = bulk_rto[rto_order_col].astype(str).str.strip().str.upper()
+            right_key = bulk_rto[["__key", rto_order_col]].drop_duplicates()
+            right_key = right_key[right_key["__key"].astype(str) != "NAN"]
+            Refund_data = Refund_data.merge(right_key, on="__key", how="left")
+            Refund_data.rename(columns={rto_order_col: "Seller Flex Return"}, inplace=True)
+        else:
+            Refund_data["Seller Flex Return"] = pd.NA
+        Refund_data.drop(columns="__key", inplace=True, errors="ignore")
         
         # Load Safe-T Claim and perform lookup
         safeT = read_any_file(safe_t_file, sheet_name="Sheet1" if not safe_t_file.name.lower().endswith(".csv") else None)
-        lookup_col = safeT.columns[3]
-        Refund_data.loc[:, "__key"] = Refund_data["Door Ship (Seller Flex)"].astype(str).str.strip().str.upper()
-        safeT.loc[:, "__key"] = safeT[lookup_col].astype(str).str.strip().str.upper()
-        safeT_small = safeT[["__key", lookup_col]].drop_duplicates()
-        Refund_data = Refund_data.merge(safeT_small, on="__key", how="left")
-        Refund_data.rename(columns={"order id_y": "Safe T Claim"}, inplace=True)
-        Refund_data.drop(columns="__key", inplace=True)
+        Refund_data.loc[:, "__key"] = Refund_data["Door Ship (Seller Flex)"].fillna("").astype(str).str.strip().str.upper()
+        Refund_data.loc[Refund_data["__key"] == "", "__key"] = pd.NA
+        
+        if len(safeT.columns) > 0:
+            lookup_col = safeT.columns[3] if len(safeT.columns) > 3 else safeT.columns[0]
+            safeT.loc[:, "__key"] = safeT[lookup_col].astype(str).str.strip().str.upper()
+            safeT_small = safeT[["__key", lookup_col]].drop_duplicates()
+            safeT_small = safeT_small[safeT_small["__key"].astype(str) != "NAN"]
+            
+            temp_col = lookup_col
+            if temp_col in Refund_data.columns:
+                temp_col = temp_col + "_from_safet"
+                safeT_small = safeT_small.rename(columns={lookup_col: temp_col})
+                
+            Refund_data = Refund_data.merge(safeT_small, on="__key", how="left")
+            Refund_data.rename(columns={temp_col: "Safe T Claim"}, inplace=True, errors="ignore")
+        else:
+            Refund_data["Safe T Claim"] = pd.NA
+        Refund_data.drop(columns="__key", inplace=True, errors="ignore")
         
         # Load Reimbursement and perform FBA Reimbursement lookup
         reim = read_any_file(reim_file)
-        filtered_reim = reim[reim["reason"].isin(["CustomerReturn", "CustomerServiceIssue"])].copy()
-        Refund_data.loc[:, "__key"] = Refund_data["order id_x"].astype(str).str.strip().str.upper()
-        filtered_reim.loc[:, "__key"] = filtered_reim["amazon-order-id"].astype(str).str.strip().str.upper()
-        filtered_reim_small = filtered_reim[["__key","amazon-order-id"]].drop_duplicates()
-        Refund_data = Refund_data.merge(filtered_reim_small, on="__key", how="left")
-        Refund_data.rename(columns={"amazon-order-id": "FBA Reimbursement"}, inplace=True)
-        Refund_data.drop(columns="__key", inplace=True)
+        reim_order_cols = [c for c in reim.columns if "amazon" in c.lower() and "order" in c.lower()]
+        reim_order_col = reim_order_cols[0] if reim_order_cols else None
+        
+        order_id_col_currents = [c for c in Refund_data.columns if "order id" in c]
+        order_id_col_current = order_id_col_currents[0] if order_id_col_currents else order_id_col
+        Refund_data.loc[:, "__key"] = Refund_data[order_id_col_current].astype(str).str.strip().str.upper()
+        
+        if reim_order_col and reim_order_col in reim.columns and "reason" in reim.columns:
+            filtered_reim = reim[reim["reason"].isin(["CustomerReturn", "CustomerServiceIssue"])].copy()
+            filtered_reim.loc[:, "__key"] = filtered_reim[reim_order_col].astype(str).str.strip().str.upper()
+            filtered_reim_small = filtered_reim[["__key", reim_order_col]].drop_duplicates()
+            
+            temp_col = reim_order_col
+            if temp_col in Refund_data.columns:
+                temp_col = temp_col + "_from_reim"
+                filtered_reim_small = filtered_reim_small.rename(columns={reim_order_col: temp_col})
+                
+            Refund_data = Refund_data.merge(filtered_reim_small, on="__key", how="left")
+            Refund_data.rename(columns={temp_col: "FBA Reimbursement"}, inplace=True)
+        else:
+            Refund_data["FBA Reimbursement"] = pd.NA
+        Refund_data.drop(columns="__key", inplace=True, errors="ignore")
         
         # Create filtered dataframes
         filtered_doorship = Refund_data[

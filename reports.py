@@ -121,66 +121,102 @@ def process_refund_leakage(refund_df, qwt_df, returns_df, bulk_rto_df, safe_t_df
     refund_df['Date_Diff'] = (pd.to_datetime(refund_df['Today']) - pd.to_datetime(refund_df['Date1'])).dt.days
     
     # Load QWT and perform Door Ship lookup
-    order_id_col = [c for c in refund_df.columns if "order" in c.lower() and "id" in c.lower()][0]
+    order_id_cols = [c for c in refund_df.columns if "order" in c.lower() and "id" in c.lower()]
+    if not order_id_cols:
+        raise KeyError("Could not find order ID column in Refund data. Required columns: order id")
+    order_id_col = order_id_cols[0]
     refund_df["__key"] = refund_df[order_id_col].astype(str).str.strip().str.upper()
     
     qwt_order_cols = [c for c in qwt_df.columns if "customer" in c.lower() and "order" in c.lower()]
-    qwt_order_col = qwt_order_cols[0] if qwt_order_cols else "Customer Order ID"
-    qwt_map = (
-        qwt_df.assign(__key = qwt_df[qwt_order_col].astype(str).str.strip().str.upper())
-           .drop_duplicates("__key", keep="first")
-           .set_index("__key")[qwt_order_col]
-    )
-    refund_df["Door Ship (Seller Flex)"] = refund_df["__key"].map(qwt_map)
+    qwt_order_col = qwt_order_cols[0] if qwt_order_cols else None
+    if qwt_order_col and qwt_order_col in qwt_df.columns:
+        qwt_map = (
+            qwt_df.assign(__key = qwt_df[qwt_order_col].astype(str).str.strip().str.upper())
+               .drop_duplicates("__key", keep="first")
+               .set_index("__key")[qwt_order_col]
+        )
+        refund_df["Door Ship (Seller Flex)"] = refund_df["__key"].map(qwt_map)
+    else:
+        refund_df["Door Ship (Seller Flex)"] = pd.NA
     refund_df.drop(columns="__key", inplace=True)
     
     # Load Returns and perform FBA Return lookup
     refund_df.loc[:, "__key"] = refund_df[order_id_col].astype(str).str.strip().str.upper()
     
     ret_order_cols = [c for c in returns_df.columns if "order" in c.lower() and "id" in c.lower()]
-    ret_order_col = ret_order_cols[0] if ret_order_cols else "order-id"
-    returns_df.loc[:, "__key"] = returns_df[ret_order_col].astype(str).str.strip().str.upper()
-    
-    ret_map = (
-        returns_df[["__key", ret_order_col]]
-          .drop_duplicates("__key", keep="first")
-          .set_index("__key")[ret_order_col]
-    )
-    refund_df["FBA Return"] = refund_df["__key"].map(ret_map)
+    ret_order_col = ret_order_cols[0] if ret_order_cols else None
+    if ret_order_col and ret_order_col in returns_df.columns:
+        returns_df.loc[:, "__key"] = returns_df[ret_order_col].astype(str).str.strip().str.upper()
+        ret_map = (
+            returns_df[["__key", ret_order_col]]
+              .drop_duplicates("__key", keep="first")
+              .set_index("__key")[ret_order_col]
+        )
+        refund_df["FBA Return"] = refund_df["__key"].map(ret_map)
+    else:
+        refund_df["FBA Return"] = pd.NA
     refund_df.drop(columns="__key", inplace=True)
     
     # Load Bulk RTO and perform Seller Flex Return lookup
-    refund_df["__key"] = refund_df["Door Ship (Seller Flex)"].astype(str).str.strip().str.upper()
+    refund_df["__key"] = refund_df["Door Ship (Seller Flex)"].fillna("").astype(str).str.strip().str.upper()
+    refund_df.loc[refund_df["__key"] == "", "__key"] = pd.NA
     
     rto_order_cols = [c for c in bulk_rto_df.columns if "order" in c.lower() and "id" in c.lower()]
-    rto_order_col = rto_order_cols[0] if rto_order_cols else "Order Id"
-    bulk_rto_df["__key"] = bulk_rto_df[rto_order_col].astype(str).str.strip().str.upper()
-    right_key = bulk_rto_df[["__key", rto_order_col]].drop_duplicates()
-    refund_df = refund_df.merge(right_key, on="__key", how="left")
-    refund_df.rename(columns={rto_order_col: "Seller Flex Return"}, inplace=True)
-    refund_df.drop(columns="__key", inplace=True)
+    rto_order_col = rto_order_cols[0] if rto_order_cols else None
+    if rto_order_col and rto_order_col in bulk_rto_df.columns:
+        bulk_rto_df["__key"] = bulk_rto_df[rto_order_col].astype(str).str.strip().str.upper()
+        right_key = bulk_rto_df[["__key", rto_order_col]].drop_duplicates()
+        right_key = right_key[right_key["__key"].astype(str) != "NAN"]
+        refund_df = refund_df.merge(right_key, on="__key", how="left")
+        refund_df.rename(columns={rto_order_col: "Seller Flex Return"}, inplace=True)
+    else:
+        refund_df["Seller Flex Return"] = pd.NA
+    refund_df.drop(columns="__key", inplace=True, errors="ignore")
     
     # Load Safe-T Claim and perform lookup
-    lookup_col = safe_t_df.columns[3] if len(safe_t_df.columns) > 3 else safe_t_df.columns[0]
-    refund_df.loc[:, "__key"] = refund_df["Door Ship (Seller Flex)"].astype(str).str.strip().str.upper()
-    safe_t_df.loc[:, "__key"] = safe_t_df[lookup_col].astype(str).str.strip().str.upper()
-    safeT_small = safe_t_df[["__key", lookup_col]].drop_duplicates()
-    refund_df = refund_df.merge(safeT_small, on="__key", how="left")
-    refund_df.rename(columns={lookup_col + "_y": "Safe T Claim"}, inplace=True, errors="ignore")
+    refund_df.loc[:, "__key"] = refund_df["Door Ship (Seller Flex)"].fillna("").astype(str).str.strip().str.upper()
+    refund_df.loc[refund_df["__key"] == "", "__key"] = pd.NA
+    
+    if len(safe_t_df.columns) > 0:
+        lookup_col = safe_t_df.columns[3] if len(safe_t_df.columns) > 3 else safe_t_df.columns[0]
+        safe_t_df.loc[:, "__key"] = safe_t_df[lookup_col].astype(str).str.strip().str.upper()
+        safeT_small = safe_t_df[["__key", lookup_col]].drop_duplicates()
+        safeT_small = safeT_small[safeT_small["__key"].astype(str) != "NAN"]
+        
+        temp_col = lookup_col
+        if temp_col in refund_df.columns:
+            temp_col = temp_col + "_from_safet"
+            safeT_small = safeT_small.rename(columns={lookup_col: temp_col})
+            
+        refund_df = refund_df.merge(safeT_small, on="__key", how="left")
+        refund_df.rename(columns={temp_col: "Safe T Claim"}, inplace=True, errors="ignore")
+    else:
+        refund_df["Safe T Claim"] = pd.NA
     refund_df.drop(columns="__key", inplace=True, errors="ignore")
     
     # Load Reimbursement and perform FBA Reimbursement lookup
     reim_order_cols = [c for c in reim_df.columns if "amazon" in c.lower() and "order" in c.lower()]
-    reim_order_col = reim_order_cols[0] if reim_order_cols else "amazon-order-id"
-    filtered_reim = reim_df[reim_df["reason"].isin(["CustomerReturn", "CustomerServiceIssue"])].copy()
+    reim_order_col = reim_order_cols[0] if reim_order_cols else None
     
-    order_id_col_current = [c for c in refund_df.columns if "order id" in c][0]
+    order_id_col_currents = [c for c in refund_df.columns if "order id" in c]
+    order_id_col_current = order_id_col_currents[0] if order_id_col_currents else order_id_col
     refund_df.loc[:, "__key"] = refund_df[order_id_col_current].astype(str).str.strip().str.upper()
-    filtered_reim.loc[:, "__key"] = filtered_reim[reim_order_col].astype(str).str.strip().str.upper()
-    filtered_reim_small = filtered_reim[["__key", reim_order_col]].drop_duplicates()
-    refund_df = refund_df.merge(filtered_reim_small, on="__key", how="left")
-    refund_df.rename(columns={reim_order_col: "FBA Reimbursement"}, inplace=True)
-    refund_df.drop(columns="__key", inplace=True)
+    
+    if reim_order_col and reim_order_col in reim_df.columns and "reason" in reim_df.columns:
+        filtered_reim = reim_df[reim_df["reason"].isin(["CustomerReturn", "CustomerServiceIssue"])].copy()
+        filtered_reim.loc[:, "__key"] = filtered_reim[reim_order_col].astype(str).str.strip().str.upper()
+        filtered_reim_small = filtered_reim[["__key", reim_order_col]].drop_duplicates()
+        
+        temp_col = reim_order_col
+        if temp_col in refund_df.columns:
+            temp_col = temp_col + "_from_reim"
+            filtered_reim_small = filtered_reim_small.rename(columns={reim_order_col: temp_col})
+            
+        refund_df = refund_df.merge(filtered_reim_small, on="__key", how="left")
+        refund_df.rename(columns={temp_col: "FBA Reimbursement"}, inplace=True)
+    else:
+        refund_df["FBA Reimbursement"] = pd.NA
+    refund_df.drop(columns="__key", inplace=True, errors="ignore")
     
     # Create filtered dataframes
     filtered_doorship = refund_df[
@@ -1074,7 +1110,9 @@ def identify_file_type(df, filename=None):
         return "raw_returns"
         
     # 7. QWT Customer Shipments
-    if any("customer order id" in c or "customer-order-id" in c for c in cols) or "qwt" in fname:
+    if any("customer order id" in c or "customer-order-id" in c or ("customer" in c and "order" in c) for c in cols):
+        return "raw_qwt"
+    if "qwt" in fname and "inventory" not in fname and "stock" not in fname:
         return "raw_qwt"
         
     # 8. Safe-T Claims (reimbursement payments, check before refund/settlement)
