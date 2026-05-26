@@ -1,0 +1,16 @@
+# Credentials
+token.txt
+.streamlit/secrets.toml
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary/debug scripts
+debug_email.py
+
+# Local test outputs
+fees_overcharge_leakage_test.xlsx
+auto_scheduler_status.json
