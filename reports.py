@@ -777,6 +777,8 @@ def fetch_email_attachments(host, port, username, password, folder="INBOX", subj
     from email.header import decode_header
     import urllib.request
     import urllib.parse
+    import socket
+    socket.setdefaulttimeout(15)  # Set connection timeout to 15 seconds to prevent hanging
     attachments = []
     debug_log = []  # Collect debug info
     
