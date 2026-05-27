@@ -868,8 +868,8 @@ def fetch_email_attachments(host, port, username, password, folder="INBOX", subj
         if not mail_ids:
             return True, [], debug_log
             
-        # Limit to the last 30 emails to prevent slow downloads
-        check_ids = list(reversed(mail_ids[-30:]))
+        # Limit to the last 7 emails to prevent slow downloads causing 503 timeouts
+        check_ids = list(reversed(mail_ids[-7:]))
         debug_log.append(f"Checking last {len(check_ids)} emails...")
         
         for mail_id in check_ids:
@@ -1197,6 +1197,7 @@ def merge_raw_file(df_new, file_type):
     return df_combined
 
 # Load report automatically from local directory
+@st.cache_data(ttl=300, show_spinner=False)
 def load_local_report(category):
     import os
     import pandas as pd
@@ -1820,6 +1821,7 @@ def run_auto_check_logic(is_automated=False):
         status["last_run_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status["last_run_status"] = "Success"
         add_log("Automated daily check completed successfully.")
+        load_local_report.clear()
         
     except Exception as e:
         add_log(f"Fatal check error: {str(e)}")
@@ -2465,6 +2467,7 @@ if st.sidebar.button("🔍 Fetch Reports from Mail", type="primary", use_contain
                     for item in loaded_files:
                         st.sidebar.write(item)
                     st.toast("Email attachments processed successfully!")
+                    load_local_report.clear()
                     st.rerun()
                 else:
                     st.sidebar.warning("⚠️ No matching files found or generated.")
@@ -2477,6 +2480,7 @@ st.sidebar.markdown("### ⚙️ Reset Options")
 if st.sidebar.button("Clear All Uploaded Reports", type="secondary", use_container_width=True):
     for key in st.session_state.reports_data.keys():
         st.session_state.reports_data[key] = None
+    load_local_report.clear()
     st.rerun()
 
 # ----------------- TABS SETUP -----------------
