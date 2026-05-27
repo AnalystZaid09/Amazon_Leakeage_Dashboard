@@ -813,8 +813,6 @@ def fetch_email_attachments(host, port, username, password, folder="INBOX", subj
     from email.header import decode_header
     import urllib.request
     import urllib.parse
-    import socket
-    socket.setdefaulttimeout(15)  # Set connection timeout to 15 seconds to prevent hanging
     attachments = []
     debug_log = []  # Collect debug info
     
@@ -1834,20 +1832,7 @@ def run_auto_check_logic(is_automated=False):
     except:
         pass
 
-if __name__ != "__main__":
-    import sys
-    sys.run_auto_check_logic = run_auto_check_logic
-    sys.identify_file_type = identify_file_type
-    sys.merge_raw_file = merge_raw_file
-    sys.process_refund_leakage = process_refund_leakage
-    sys.run_auto_check_logic = run_auto_check_logic
-    sys.process_replacement_leakage = process_replacement_leakage
-    sys.process_return_leakage = process_return_leakage
-    sys.process_free_overcharged_leakage = process_free_overcharged_leakage
-    sys.get_report_path = get_report_path
-    sys.fetch_email_attachments = fetch_email_attachments
-    sys.read_bytes_file = read_bytes_file
-    raise ImportError("Stop import for UI execution")
+
 
 # Initialize session state for uploaded reports
 if "reports_data" not in st.session_state:
