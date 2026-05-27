@@ -1504,80 +1504,6 @@ def render_sub_report(df, name_key, download_name):
         else:
             st.info("SKU charts require an identifier column (e.g. SKU, ASIN) and/or Amount column.")
 
-# Initialize session state for uploaded reports
-if "reports_data" not in st.session_state:
-    st.session_state.reports_data = {
-        "Refund Leakage": None,
-        "Return Leakage": None,
-        "Replacement Leakage": None,
-        "Fees Overcharge Leakage": None,
-        "Extra Pattern Find Leakage": None
-    }
-
-# Startup sync from Email (only runs on new session open)
-if "startup_sync_done" not in st.session_state:
-    st.session_state.startup_sync_done = True
-    
-    # Read password from secrets or token
-    mail_user = "reports@snaphire-it.com"
-    mail_pass = get_secret_safe("email_password")
-    if not mail_pass and os.path.exists("token.txt"):
-        try:
-            with open("token.txt", "r") as f:
-                mail_pass = f.read().strip()
-        except:
-            pass
-            
-    if mail_pass:
-        with st.spinner("🔄 Startup Sync: Checking reports@snaphire-it.com for new report files..."):
-            try:
-                run_auto_check_logic(is_automated=False)
-                st.toast("✅ Mailbox sync complete: Reports up-to-date!")
-            except Exception as e:
-                st.toast(f"⚠️ Startup sync warning: {e}")
-
-# ----------------- UI HEADERS -----------------
-st.markdown('<div class="main-title">🎯 Leakage Pipeline Reports</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Aggregated leakage analysis across refund, return, replacement, fees, and custom checks</div>', unsafe_allow_html=True)
-
-# Email instruction banner & manual sync button
-st.info("""
-📧 **Email Auto-check Pipeline**: 
-To automatically feed reports into this dashboard, ask the sender to email raw files to **reports@snaphire-it.com** with the subject: **"Amazon Leakeage Reports"**.
-""")
-
-col_sync_btn, col_spacer = st.columns([1.5, 2])
-with col_sync_btn:
-    if st.button("⚡ Scan Mail & Rebuild Reports", type="primary", use_container_width=True):
-        mail_user = "reports@snaphire-it.com"
-        mail_pass = get_secret_safe("email_password")
-        if not mail_pass and os.path.exists("token.txt"):
-            try:
-                with open("token.txt", "r") as f:
-                    mail_pass = f.read().strip()
-            except:
-                pass
-                
-        if not mail_pass:
-            st.error("🔑 Password missing. Please set st.secrets['email_password'] or token.txt.")
-        else:
-            with st.spinner("Connecting and downloading email attachments..."):
-                try:
-                    run_auto_check_logic(is_automated=False)
-                    st.success("✅ Reports successfully synchronized and regenerated!")
-                    st.toast("Successfully synced and updated reports!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Rebuild error: {e}")
-
-# Latest run information (mocked based on current date)
-st.markdown(f"""
-<div class="status-banner">
-    <span>✅</span>
-    <span>Latest run: {datetime.today().strftime('%Y-%m-%d')} &nbsp;|&nbsp; Reference point: 150-day window</span>
-</div>
-""", unsafe_allow_html=True)
-
 # Helper to render file uploader with fallback
 def render_file_uploader_with_fallback(label, primary_key, fallback_keys, file_types=['csv', 'xlsx', 'xls']):
     # Check if any fallback is present in session state
@@ -1914,6 +1840,7 @@ if __name__ != "__main__":
     sys.identify_file_type = identify_file_type
     sys.merge_raw_file = merge_raw_file
     sys.process_refund_leakage = process_refund_leakage
+    sys.run_auto_check_logic = run_auto_check_logic
     sys.process_replacement_leakage = process_replacement_leakage
     sys.process_return_leakage = process_return_leakage
     sys.process_free_overcharged_leakage = process_free_overcharged_leakage
@@ -1921,6 +1848,83 @@ if __name__ != "__main__":
     sys.fetch_email_attachments = fetch_email_attachments
     sys.read_bytes_file = read_bytes_file
     raise ImportError("Stop import for UI execution")
+
+# Initialize session state for uploaded reports
+if "reports_data" not in st.session_state:
+    st.session_state.reports_data = {
+        "Refund Leakage": None,
+        "Return Leakage": None,
+        "Replacement Leakage": None,
+        "Fees Overcharge Leakage": None,
+        "Extra Pattern Find Leakage": None
+    }
+
+# Startup sync from Email (only runs on new session open)
+if "startup_sync_done" not in st.session_state:
+    st.session_state.startup_sync_done = True
+    
+    # Read password from secrets or token
+    mail_user = "reports@snaphire-it.com"
+    mail_pass = get_secret_safe("email_password")
+    if not mail_pass and os.path.exists("token.txt"):
+        try:
+            with open("token.txt", "r") as f:
+                mail_pass = f.read().strip()
+        except:
+            pass
+            
+    if mail_pass:
+        with st.spinner("🔄 Startup Sync: Checking reports@snaphire-it.com for new report files..."):
+            try:
+                run_auto_check_logic(is_automated=False)
+                st.toast("✅ Mailbox sync complete: Reports up-to-date!")
+            except Exception as e:
+                st.toast(f"⚠️ Startup sync warning: {e}")
+
+# ----------------- UI HEADERS -----------------
+st.markdown('<div class="main-title">🎯 Leakage Pipeline Reports</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Aggregated leakage analysis across refund, return, replacement, fees, and custom checks</div>', unsafe_allow_html=True)
+
+# Email instruction banner & manual sync button
+st.info("""
+📧 **Email Auto-check Pipeline**: 
+To automatically feed reports into this dashboard, ask the sender to email raw files to **reports@snaphire-it.com** with the subject: **"Amazon Leakeage Reports"**.
+""")
+
+col_sync_btn, col_spacer = st.columns([1.5, 2])
+with col_sync_btn:
+    if st.button("⚡ Scan Mail & Rebuild Reports", type="primary", use_container_width=True):
+        mail_user = "reports@snaphire-it.com"
+        mail_pass = get_secret_safe("email_password")
+        if not mail_pass and os.path.exists("token.txt"):
+            try:
+                with open("token.txt", "r") as f:
+                    mail_pass = f.read().strip()
+            except:
+                pass
+                
+        if not mail_pass:
+            st.error("🔑 Password missing. Please set st.secrets['email_password'] or token.txt.")
+        else:
+            with st.spinner("Connecting and downloading email attachments..."):
+                try:
+                    run_auto_check_logic(is_automated=False)
+                    st.success("✅ Reports successfully synchronized and regenerated!")
+                    st.toast("Successfully synced and updated reports!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Rebuild error: {e}")
+
+# Latest run information (mocked based on current date)
+st.markdown(f"""
+<div class="status-banner">
+    <span>✅</span>
+    <span>Latest run: {datetime.today().strftime('%Y-%m-%d')} &nbsp;|&nbsp; Reference point: 150-day window</span>
+</div>
+""", unsafe_allow_html=True)
+
+# Helper to render file uploader with fallback
+
 # ----------------- INPUT DATA HUB (RAW SOURCE FILES) -----------------
 with st.expander("📁 Input Data Hub: Upload Raw Amazon Files to Generate Reports", expanded=False):
     st.markdown("Upload your raw Amazon export files below. The dashboard will automatically execute cross-checks, save the output reports, and display them in the tabs.")
