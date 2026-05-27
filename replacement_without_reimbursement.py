@@ -220,14 +220,9 @@ def process_replacement_data(replace_file, return_file, refund_file, bulk_rto_fi
         lookup_value_col = Replace.columns[8]
         lookup_key_col = Refund.columns[4]
         
-        Replace = Replace.merge(
-            Refund[[lookup_key_col]].drop_duplicates(),
-            how="left",
-            left_on=lookup_value_col,
-            right_on=lookup_key_col
-        )
-        Replace["Refund Check"] = Replace[lookup_key_col]
-        Replace.drop(columns=[lookup_key_col], inplace=True, errors="ignore")
+        refund_map = Refund[[lookup_key_col]].drop_duplicates().set_index(lookup_key_col)
+        refund_series = pd.Series(refund_map.index, index=refund_map.index)
+        Replace["Refund Check"] = Replace[lookup_value_col].map(refund_series)
         
         # Filter 2: Refund without Returns
         filtered_df_step2 = Replace[
@@ -255,14 +250,9 @@ def process_replacement_data(replace_file, return_file, refund_file, bulk_rto_fi
         lookup_value_col = filtered_df_step2.columns[8]
         lookup_key_col = BulkRTO.columns[0]
         
-        filtered_df_step2 = filtered_df_step2.merge(
-            BulkRTO[[lookup_key_col]].drop_duplicates(),
-            how="left",
-            left_on=lookup_value_col,
-            right_on=lookup_key_col
-        )
-        filtered_df_step2["Door Step Return"] = filtered_df_step2[lookup_key_col]
-        filtered_df_step2.drop(columns=[lookup_key_col], inplace=True, errors="ignore")
+        blk_map = BulkRTO[[lookup_key_col]].drop_duplicates().set_index(lookup_key_col)
+        blk_series = pd.Series(blk_map.index, index=blk_map.index)
+        filtered_df_step2["Door Step Return"] = filtered_df_step2[lookup_value_col].map(blk_series)
         
         # Filter 3: No Door Step Return
         filtered_df_step3 = filtered_df_step2[

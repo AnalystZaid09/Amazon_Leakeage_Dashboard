@@ -119,6 +119,12 @@ def process_refund_data(refund_file, qwt_file, returns_file, bulk_rto_file, safe
         TYPE_COL = [c for c in Refund_data.columns if c.strip().lower() == "type"][0]
         Refund_data = Refund_data[Refund_data[TYPE_COL].astype(str).str.lower() == "refund"].copy()
         
+        # Drop unwanted extra columns that might be present in the raw file
+        unwanted_cols = ["date/time.1", "Todays", "Diff", "OrdersReturns", "FBA Re", "Reim", "Safe", "FBA", "Rep"]
+        cols_to_drop = [c for c in Refund_data.columns if str(c).strip() in unwanted_cols]
+        if cols_to_drop:
+            Refund_data.drop(columns=cols_to_drop, inplace=True, errors="ignore")
+        
         # Remove Product Sales = 0
         product_sales_col = "product sales"
         Refund_data[product_sales_col] = pd.to_numeric(Refund_data[product_sales_col], errors="coerce")
@@ -185,8 +191,8 @@ def process_refund_data(refund_file, qwt_file, returns_file, bulk_rto_file, safe
             bulk_rto["__key"] = bulk_rto[rto_order_col].astype(str).str.strip().str.upper()
             right_key = bulk_rto[["__key", rto_order_col]].drop_duplicates()
             right_key = right_key[right_key["__key"].astype(str) != "NAN"]
-            Refund_data = Refund_data.merge(right_key, on="__key", how="left")
-            Refund_data.rename(columns={rto_order_col: "Seller Flex Return"}, inplace=True)
+            rto_map = right_key.set_index("__key")[rto_order_col]
+            Refund_data["Seller Flex Return"] = Refund_data["__key"].map(rto_map)
         else:
             Refund_data["Seller Flex Return"] = pd.NA
         Refund_data.drop(columns="__key", inplace=True, errors="ignore")

@@ -98,6 +98,12 @@ def process_refund_leakage(refund_df, qwt_df, returns_df, bulk_rto_df, safe_t_df
     if type_cols:
         refund_df = refund_df[refund_df[type_cols[0]].astype(str).str.lower() == "refund"].copy()
     
+    # Drop unwanted extra columns that might be present in the raw file
+    unwanted_cols = ["date/time.1", "Todays", "Diff", "OrdersReturns", "FBA Re", "Reim", "Safe", "FBA", "Rep"]
+    cols_to_drop = [c for c in refund_df.columns if str(c).strip() in unwanted_cols]
+    if cols_to_drop:
+        refund_df.drop(columns=cols_to_drop, inplace=True, errors="ignore")
+    
     # Remove Product Sales = 0
     product_sales_col = "product sales"
     sales_cols = [c for c in refund_df.columns if "product" in c.lower() and "sales" in c.lower()]
@@ -167,8 +173,8 @@ def process_refund_leakage(refund_df, qwt_df, returns_df, bulk_rto_df, safe_t_df
         bulk_rto_df["__key"] = bulk_rto_df[rto_order_col].astype(str).str.strip().str.upper()
         right_key = bulk_rto_df[["__key", rto_order_col]].drop_duplicates()
         right_key = right_key[right_key["__key"].astype(str) != "NAN"]
-        refund_df = refund_df.merge(right_key, on="__key", how="left")
-        refund_df.rename(columns={rto_order_col: "Seller Flex Return"}, inplace=True)
+        rto_map = right_key.set_index("__key")[rto_order_col]
+        refund_df["Seller Flex Return"] = refund_df["__key"].map(rto_map)
     else:
         refund_df["Seller Flex Return"] = pd.NA
     refund_df.drop(columns="__key", inplace=True, errors="ignore")
@@ -354,14 +360,9 @@ def process_replacement_leakage(replace_df, return_df, refund_df, bulk_rto_df, r
     refund_order_cols = [c for c in refund_cols if "order" in str(c).lower() and "id" in str(c).lower()]
     refund_order_col = refund_order_cols[0] if refund_order_cols else refund_df.columns[4]
     
-    replace_df = replace_df.merge(
-        refund_df[[refund_order_col]].drop_duplicates(),
-        how="left",
-        left_on=orig_order_col,
-        right_on=refund_order_col
-    )
-    replace_df["Refund Check"] = replace_df[refund_order_col]
-    replace_df.drop(columns=[refund_order_col], inplace=True, errors="ignore")
+    refund_map = refund_df[[refund_order_col]].drop_duplicates().set_index(refund_order_col)
+    refund_series = pd.Series(refund_map.index, index=refund_map.index)
+    replace_df["Refund Check"] = replace_df[orig_order_col].map(refund_series)
     
     # Filter: Refund without Returns
     filtered_df_step2 = replace_df[
@@ -386,14 +387,9 @@ def process_replacement_leakage(replace_df, return_df, refund_df, bulk_rto_df, r
     blk_order_cols = [c for c in bulk_cols if "order" in str(c).lower() and "id" in str(c).lower()]
     blk_order_col = blk_order_cols[0] if blk_order_cols else bulk_rto_df.columns[0]
     
-    filtered_df_step2 = filtered_df_step2.merge(
-        bulk_rto_df[[blk_order_col]].drop_duplicates(),
-        how="left",
-        left_on=orig_order_col,
-        right_on=blk_order_col
-    )
-    filtered_df_step2["Door Step Return"] = filtered_df_step2[blk_order_col]
-    filtered_df_step2.drop(columns=[blk_order_col], inplace=True, errors="ignore")
+    blk_map = bulk_rto_df[[blk_order_col]].drop_duplicates().set_index(blk_order_col)
+    blk_series = pd.Series(blk_map.index, index=blk_map.index)
+    filtered_df_step2["Door Step Return"] = filtered_df_step2[orig_order_col].map(blk_series)
     
     # Filter: No Door Step Return
     filtered_df_step3 = filtered_df_step2[
