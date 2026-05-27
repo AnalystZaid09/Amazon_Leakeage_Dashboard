@@ -1859,27 +1859,7 @@ if "reports_data" not in st.session_state:
         "Extra Pattern Find Leakage": None
     }
 
-# Startup sync from Email (only runs on new session open)
-if "startup_sync_done" not in st.session_state:
-    st.session_state.startup_sync_done = True
-    
-    # Read password from secrets or token
-    mail_user = "reports@snaphire-it.com"
-    mail_pass = get_secret_safe("email_password")
-    if not mail_pass and os.path.exists("token.txt"):
-        try:
-            with open("token.txt", "r") as f:
-                mail_pass = f.read().strip()
-        except:
-            pass
-            
-    if mail_pass:
-        with st.spinner("🔄 Startup Sync: Checking reports@snaphire-it.com for new report files..."):
-            try:
-                run_auto_check_logic(is_automated=False)
-                st.toast("✅ Mailbox sync complete: Reports up-to-date!")
-            except Exception as e:
-                st.toast(f"⚠️ Startup sync warning: {e}")
+
 
 # ----------------- UI HEADERS -----------------
 st.markdown('<div class="main-title">🎯 Leakage Pipeline Reports</div>', unsafe_allow_html=True)
