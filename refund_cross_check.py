@@ -2,6 +2,8 @@
 @st.cache_data
 def get_pm_brand_map():
     import pandas as pd
+    import warnings
+    warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
     import os
     if not os.path.exists("PM.xlsx"):
         return {}
@@ -343,7 +345,7 @@ with tat_col2:
 # Process Button
 all_files = [refund_file, qwt_file, returns_file, bulk_rto_file, safe_t_file, reim_file]
 if all(all_files):
-    if st.button("🔍 Analyze Refund Data", type="primary", use_container_width=True):
+    if st.button("🔍 Analyze Refund Data", type="primary", width="stretch"):
         with st.spinner("Processing data..."):
             results = process_refund_data(*all_files, door_tat_min, door_tat_max, fba_tat_min)
             

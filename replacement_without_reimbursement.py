@@ -2,6 +2,8 @@
 @st.cache_data
 def get_pm_brand_map():
     import pandas as pd
+    import warnings
+    warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
     import os
     if not os.path.exists("PM.xlsx"):
         return {}
@@ -44,6 +46,8 @@ def get_pm_brand_map():
 # Helper to insert mapped Brand column at the starting of a DataFrame
 def map_brand_column_from_pm(df):
     import pandas as pd
+    import warnings
+    warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
     if df is None or len(df) == 0:
         return df
     try:
@@ -309,7 +313,7 @@ days_threshold = st.number_input(
 # Process Button
 all_files = [replace_file, return_file, refund_file, bulk_rto_file, reim_file]
 if all(all_files):
-    if st.button("🔍 Analyze Replacement Data", type="primary", use_container_width=True):
+    if st.button("🔍 Analyze Replacement Data", type="primary", width="stretch"):
         with st.spinner("Processing data... This may take a moment."):
             results = process_replacement_data(*all_files, days_threshold)
             
@@ -355,15 +359,15 @@ if all(all_files):
                 
                 with tab1:
                     st.markdown(f"**Replacements with damaged items (≥{int(days_threshold)} days old)**")
-                    st.dataframe(results['damaged_returns'], use_container_width=True)
+                    st.dataframe(results['damaged_returns'], width="stretch")
                 
                 with tab2:
                     st.markdown(f"**Replacements with refund but no return record (≥{int(days_threshold)} days old)**")
-                    st.dataframe(results['refund_without_return'], use_container_width=True)
+                    st.dataframe(results['refund_without_return'], width="stretch")
                 
                 with tab3:
                     st.markdown("**All processed replacement data**")
-                    st.dataframe(results['main'], use_container_width=True)
+                    st.dataframe(results['main'], width="stretch")
                 
                 # Download Buttons
                 st.markdown("### 💾 Download Reports")

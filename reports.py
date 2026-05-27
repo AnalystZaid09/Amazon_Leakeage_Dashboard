@@ -1,4 +1,6 @@
 import streamlit as st
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 import pandas as pd
 from datetime import datetime, date, timedelta
 import io
@@ -1416,7 +1418,7 @@ def render_sub_report(df, name_key, download_name):
 
     # Show Table safely formatted for PyArrow
     df_display = prepare_df_for_arrow(df_display)
-    st.dataframe(df_display, use_container_width=True)
+    st.dataframe(df_display, width="stretch")
 
     # Download button
     buffer = io.BytesIO()
@@ -1856,7 +1858,7 @@ To automatically feed reports into this dashboard, ask the sender to email raw f
 
 col_sync_btn, col_spacer = st.columns([1.5, 2])
 with col_sync_btn:
-    if st.button("⚡ Scan Mail & Rebuild Reports", type="primary", use_container_width=True):
+    if st.button("⚡ Scan Mail & Rebuild Reports", type="primary", width="stretch"):
         mail_user = "reports@snaphire-it.com"
         mail_pass = get_secret_safe("email_password")
         if not mail_pass and os.path.exists("token.txt"):
@@ -1940,7 +1942,7 @@ with st.expander("📁 Input Data Hub: Upload Raw Amazon Files to Generate Repor
             
         ref_pm = render_file_uploader_with_fallback("7. PM File (Excel/CSV) - Mapping", "raw_pm_refund", ["raw_pm_replace", "raw_pm_return"])
         
-        if st.button("⚡ Generate Refund Leakage Report", type="primary", use_container_width=True):
+        if st.button("⚡ Generate Refund Leakage Report", type="primary", width="stretch"):
             if ref_refund and ref_qwt and ref_returns and ref_bulk and ref_safe and ref_reim:
                 with st.spinner("Processing Refund Leakage..."):
                     try:
@@ -1981,7 +1983,7 @@ with st.expander("📁 Input Data Hub: Upload Raw Amazon Files to Generate Repor
             
         rep_pm = render_file_uploader_with_fallback("6. PM File (Excel/CSV) - Mapping", "raw_pm_replace", ["raw_pm_refund", "raw_pm_return"])
         
-        if st.button("⚡ Generate Replacement Leakage Report", type="primary", use_container_width=True):
+        if st.button("⚡ Generate Replacement Leakage Report", type="primary", width="stretch"):
             if rep_replace and rep_returns and rep_refund and rep_bulk and rep_reim:
                 with st.spinner("Processing Replacement Leakage..."):
                     try:
@@ -2019,7 +2021,7 @@ with st.expander("📁 Input Data Hub: Upload Raw Amazon Files to Generate Repor
             
         ret_pm = render_file_uploader_with_fallback("4. PM File (Excel/CSV) - Mapping", "raw_pm_return", ["raw_pm_refund", "raw_pm_replace"])
         
-        if st.button("⚡ Generate Return Leakage Report", type="primary", use_container_width=True):
+        if st.button("⚡ Generate Return Leakage Report", type="primary", width="stretch"):
             if ret_returns and ret_reim and ret_replace:
                 with st.spinner("Processing Return Leakage..."):
                     try:
@@ -2050,7 +2052,7 @@ with st.expander("📁 Input Data Hub: Upload Raw Amazon Files to Generate Repor
         with free_col2:
             free_fee = st.file_uploader("2. Fee Estimate Report - FREE (CSV)", type=['csv'], key="raw_free_fee")
         
-        if st.button("⚡ Generate Fees Overcharge Leakage Report", type="primary", use_container_width=True):
+        if st.button("⚡ Generate Fees Overcharge Leakage Report", type="primary", width="stretch"):
             if free_txn and free_fee:
                 with st.spinner("Processing Fees Overcharge Leakage..."):
                     try:
@@ -2272,7 +2274,7 @@ with st.sidebar.expander("Configure IMAP Mailbox", expanded=False):
     
     st.info(f"**Mail Provider Detected:** {provider}\n\n{note}")
 
-if st.sidebar.button("🔍 Fetch Reports from Mail", type="primary", use_container_width=True):
+if st.sidebar.button("🔍 Fetch Reports from Mail", type="primary", width="stretch"):
     if not mail_pass:
         st.sidebar.error("🔑 Please enter your email password/app pass.")
     else:
@@ -2473,7 +2475,7 @@ if st.sidebar.button("🔍 Fetch Reports from Mail", type="primary", use_contain
 # Sidebar reset controls
 st.sidebar.markdown("---")
 st.sidebar.markdown("### ⚙️ Saved Reports & Reset")
-if st.sidebar.button("📂 Load Saved Reports from Disk", type="secondary", use_container_width=True):
+if st.sidebar.button("📂 Load Saved Reports from Disk", type="secondary", width="stretch"):
     with st.spinner("Loading saved reports from disk into memory..."):
         for key in st.session_state.reports_data.keys():
             local_df = load_local_report(key)
@@ -2481,7 +2483,7 @@ if st.sidebar.button("📂 Load Saved Reports from Disk", type="secondary", use_
                 st.session_state.reports_data[key] = local_df
     st.rerun()
 
-if st.sidebar.button("Clear All Uploaded Reports", type="secondary", use_container_width=True):
+if st.sidebar.button("Clear All Uploaded Reports", type="secondary", width="stretch"):
     for key in st.session_state.reports_data.keys():
         st.session_state.reports_data[key] = None
     load_local_report.clear()
@@ -2625,7 +2627,7 @@ for category in categories:
                 
                 # Show Table
                 df_display = prepare_df_for_arrow(df_display)
-                st.dataframe(df_display, use_container_width=True)
+                st.dataframe(df_display, width="stretch")
                 
                 # Download button
                 buffer = io.BytesIO()
@@ -2924,7 +2926,7 @@ for category in categories:
                 
                 # Show Table
                 df_display_renamed = prepare_df_for_arrow(df_display_renamed)
-                st.dataframe(df_display_renamed, use_container_width=True)
+                st.dataframe(df_display_renamed, width="stretch")
                 
                 # Download button
                 buffer = io.BytesIO()
@@ -3333,7 +3335,7 @@ for category in categories:
                 
             # Show Table
             df_display = prepare_df_for_arrow(df_display)
-            st.dataframe(df_display, use_container_width=True)
+            st.dataframe(df_display, width="stretch")
             
             # Download filtered data
             buffer = io.BytesIO()

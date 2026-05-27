@@ -1,4 +1,6 @@
 import streamlit as st
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 import pandas as pd
 import io
 
@@ -69,7 +71,7 @@ with st.spinner("Reading transaction file…"):
         st.stop()
 
 with st.expander("Raw transaction preview (first 5 rows)", expanded=False):
-    st.dataframe(transaction_raw.head(), use_container_width=True)
+    st.dataframe(transaction_raw.head(), width="stretch")
 
 # Clean numeric columns
 numeric_cols = [
@@ -108,7 +110,7 @@ with st.spinner("Reading fee estimate file…"):
         st.stop()
 
 with st.expander("Raw fee estimate preview (first 5 rows)", expanded=False):
-    st.dataframe(free.head(), use_container_width=True)
+    st.dataframe(free.head(), width="stretch")
 
 # --- Compute derived fee columns ---
 for col in ["sales-price", "estimated-referral-fee-per-unit"]:
@@ -208,7 +210,7 @@ pivot_table["Weight Handling Different"] = (
 ).round(2)
 
 st.subheader(f"📋 Full Pivot Table — {len(pivot_table):,} rows")
-st.dataframe(pivot_table, use_container_width=True, height=400)
+st.dataframe(pivot_table, width="stretch", height=400)
 
 pivot_buf = io.BytesIO()
 pivot_table.to_excel(pivot_buf, index=False, engine="openpyxl")
@@ -253,7 +255,7 @@ with tab1:
     if negative_diff_report.empty:
         st.success("🎉 No commission overcharges detected!")
     else:
-        st.dataframe(negative_diff_report, use_container_width=True)
+        st.dataframe(negative_diff_report, width="stretch")
 
         buf = io.BytesIO()
         negative_diff_report.to_excel(buf, index=False, engine="openpyxl")
@@ -287,7 +289,7 @@ with tab2:
     if negative_weight_report.empty:
         st.success("🎉 No weight handling overcharges detected!")
     else:
-        st.dataframe(negative_weight_report, use_container_width=True)
+        st.dataframe(negative_weight_report, width="stretch")
 
         buf2 = io.BytesIO()
         negative_weight_report.to_excel(buf2, index=False, engine="openpyxl")
