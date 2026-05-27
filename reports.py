@@ -2476,7 +2476,15 @@ if st.sidebar.button("🔍 Fetch Reports from Mail", type="primary", use_contain
 
 # Sidebar reset controls
 st.sidebar.markdown("---")
-st.sidebar.markdown("### ⚙️ Reset Options")
+st.sidebar.markdown("### ⚙️ Saved Reports & Reset")
+if st.sidebar.button("📂 Load Saved Reports from Disk", type="secondary", use_container_width=True):
+    with st.spinner("Loading saved reports from disk into memory..."):
+        for key in st.session_state.reports_data.keys():
+            local_df = load_local_report(key)
+            if local_df is not None:
+                st.session_state.reports_data[key] = local_df
+    st.rerun()
+
 if st.sidebar.button("Clear All Uploaded Reports", type="secondary", use_container_width=True):
     for key in st.session_state.reports_data.keys():
         st.session_state.reports_data[key] = None
@@ -2513,11 +2521,9 @@ for category in categories:
     with tabs_map[category]:
         st.subheader(f"📊 {category} Details")
         
-        # Auto-load from local directory if not already in session state
-        if st.session_state.reports_data[category] is None:
-            local_df = load_local_report(category)
-            if local_df is not None:
-                st.session_state.reports_data[category] = local_df
+        # Auto-load disabled to prevent OOM timeout crash on boot. User must load manually.
+        # Data is only populated when user clicks "Load Saved Reports" or generates new reports.
+
                 
         df_raw = st.session_state.reports_data[category]
         
