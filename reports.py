@@ -173,7 +173,7 @@ def process_refund_leakage(refund_df, qwt_df, returns_df, bulk_rto_df, safe_t_df
     rto_order_col = rto_order_cols[0] if rto_order_cols else None
     if rto_order_col and rto_order_col in bulk_rto_df.columns:
         bulk_rto_df["__key"] = bulk_rto_df[rto_order_col].astype(str).str.strip().str.upper()
-        right_key = bulk_rto_df[["__key", rto_order_col]].drop_duplicates()
+        right_key = bulk_rto_df[["__key", rto_order_col]].drop_duplicates(subset=["__key"], keep="first")
         right_key = right_key[right_key["__key"].astype(str) != "NAN"]
         rto_map = right_key.set_index("__key")[rto_order_col]
         refund_df["Seller Flex Return"] = refund_df["__key"].map(rto_map)

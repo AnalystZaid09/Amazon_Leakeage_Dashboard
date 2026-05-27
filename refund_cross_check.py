@@ -191,7 +191,7 @@ def process_refund_data(refund_file, qwt_file, returns_file, bulk_rto_file, safe
         rto_order_col = rto_order_cols[0] if rto_order_cols else None
         if rto_order_col and rto_order_col in bulk_rto.columns:
             bulk_rto["__key"] = bulk_rto[rto_order_col].astype(str).str.strip().str.upper()
-            right_key = bulk_rto[["__key", rto_order_col]].drop_duplicates()
+            right_key = bulk_rto[["__key", rto_order_col]].drop_duplicates(subset=["__key"], keep="first")
             right_key = right_key[right_key["__key"].astype(str) != "NAN"]
             rto_map = right_key.set_index("__key")[rto_order_col]
             Refund_data["Seller Flex Return"] = Refund_data["__key"].map(rto_map)
